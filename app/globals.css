@@ -221,6 +221,45 @@ select:focus-visible {
   white-space: nowrap;
 }
 
+.feed-meta {
+  justify-items: end;
+}
+
+.feed-controls {
+  gap: 6px !important;
+}
+
+.feed-controls button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: #38535a;
+  padding: 5px 7px;
+  font: inherit;
+  font-size: 0.67rem;
+  cursor: pointer;
+}
+
+.feed-controls button:last-child {
+  color: #a34737;
+}
+
+.feed-controls button:hover {
+  border-color: #9eb0b5;
+  background: #f7faf9;
+}
+
+.locked-pill {
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: #edf1f2;
+  color: #60747a !important;
+  font-size: 0.64rem !important;
+}
+
 .activity-page .standings-heading {
   margin-bottom: 18px;
 }

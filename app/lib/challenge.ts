@@ -19,6 +19,7 @@ export type ActivitySession = {
 
 export type PrivateWeight = {
   id: string;
+  sessionId?: string;
   participantSlug: string;
   recordedDate: string;
   weightKg: number;
@@ -102,6 +103,17 @@ export const formatChallengeDate = (isoDate: string, options?: Intl.DateTimeForm
   );
 
 export const roundOne = (value: number) => Math.round(value * 10) / 10;
+
+export const isEntryOpen = (isoDate: string, now = new Date()) => {
+  if (isoDate < "2026-08-02" || isoDate > "2026-09-20") return false;
+  const start = Date.parse("2026-08-02T00:00:00+12:00");
+  const entry = Date.parse(`${isoDate}T00:00:00+12:00`);
+  const day = Math.round((entry - start) / 86_400_000);
+  const week = Math.ceil(day / 7);
+  const cutoff = Date.parse(`${challengeWeeks[week].date}T22:00:00+12:00`);
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Pacific/Auckland" }).format(now);
+  return isoDate <= today && now.getTime() < cutoff;
+};
 
 export const getReleasedStats = (
   results: WeeklyResult[],

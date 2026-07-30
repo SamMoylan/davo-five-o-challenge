@@ -8,12 +8,12 @@ import {
 } from "recharts";
 import {
   Activity, CalendarDays, Check, ChevronRight, Dumbbell, Eye,
-  EyeOff, Flame, Footprints, LockKeyhole, LogOut, Menu, Plus,
-  Scale, Sparkles, Trophy, X,
+  EyeOff, Flame, Footprints, LockKeyhole, LogOut, Menu, Pencil, Plus,
+  Scale, Sparkles, Trash2, Trophy, X,
 } from "lucide-react";
 import {
   activityTypes, challengeWeeks, demoReleasedResults, demoSessions, demoWeights,
-  formatChallengeDate, getReleasedStats, participants,
+  formatChallengeDate, getReleasedStats, isEntryOpen, participants,
   type ActivitySession, type Participant, type PrivateWeight, type WeeklyResult,
 } from "./lib/challenge";
 import { isSupabaseConfigured, supabase } from "./lib/supabase";
@@ -87,33 +87,34 @@ function LoginScreen({ onDemoLogin, onRemoteLogin, loading, error }: {
   );
 }
 
-function SessionModal({ participant, onClose, onSave, saving }: {
+function SessionModal({ participant, existing, existingWeight, onClose, onSave, saving }: {
   participant: Participant; onClose: () => void;
+  existing?: ActivitySession; existingWeight?: PrivateWeight;
   onSave: (session: ActivitySession, weight?: PrivateWeight) => void; saving: boolean;
 }) {
-  const [date, setDate] = useState(isSupabaseConfigured ? localToday() : "2026-08-21");
-  const [activityType, setActivityType] = useState("Gym");
-  const [minutes, setMinutes] = useState("30");
-  const [weight, setWeight] = useState("");
-  const [note, setNote] = useState("");
+  const [date, setDate] = useState(existing?.sessionDate ?? (isSupabaseConfigured ? localToday() : "2026-08-21"));
+  const [activityType, setActivityType] = useState(existing?.activityType ?? "Gym");
+  const [minutes, setMinutes] = useState(String(existing?.minutes ?? 30));
+  const [weight, setWeight] = useState(existingWeight ? String(existingWeight.weightKg) : "");
+  const [note, setNote] = useState(existing?.note ?? "");
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
-    const id =
+    const id = existing?.id ??
       typeof crypto.randomUUID === "function"
         ? crypto.randomUUID()
         : `session-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     onSave({
       id, participantSlug: participant.slug, sessionDate: date, activityType,
       minutes: Number(minutes), note, createdAt: `${date}T23:59:59+12:00`,
-    }, weight ? { id: `weight-${id}`, participantSlug: participant.slug, recordedDate: date, weightKg: Number(weight) } : undefined);
+    }, weight ? { id: existingWeight?.id ?? `weight-${id}`, sessionId: id, participantSlug: participant.slug, recordedDate: date, weightKg: Number(weight) } : undefined);
   };
   return <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
     <section className="check-in-modal session-modal" role="dialog" aria-modal="true" aria-labelledby="session-heading" onMouseDown={(e) => e.stopPropagation()}>
-      <div className="modal-header"><div><span className="eyebrow">Add it when it happens</span><h2 id="session-heading">Log today&apos;s session</h2></div><button className="icon-button" onClick={onClose} aria-label="Close"><X size={21} /></button></div>
+      <div className="modal-header"><div><span className="eyebrow">{existing ? "Update your entry" : "Add one or catch up"}</span><h2 id="session-heading">{existing ? "Edit session" : "Log a session"}</h2></div><button className="icon-button" onClick={onClose} aria-label="Close"><X size={21} /></button></div>
       <div className="privacy-callout"><LockKeyhole size={19} /><div><strong>Your weight stays private</strong><span>If you add it, only you can see it until the weekly Sunday reveal at 10 PM.</span></div></div>
       <form className="check-in-form" onSubmit={submit}>
         <div className="form-row">
-          <label className="field"><span>Date</span><div className="input-with-suffix"><input type="date" min="2026-08-02" max="2026-09-20" value={date} onChange={(e) => setDate(e.target.value)} required /></div></label>
+          <label className="field"><span>Date</span><div className="input-with-suffix"><input type="date" min="2026-08-02" max={localToday()} value={date} onChange={(e) => setDate(e.target.value)} required /></div></label>
           <label className="field"><span>Activity</span><select value={activityType} onChange={(e) => setActivityType(e.target.value)}>{activityTypes.map((type) => <option key={type}>{type}</option>)}</select></label>
         </div>
         <div className="form-row">
@@ -121,7 +122,7 @@ function SessionModal({ participant, onClose, onSave, saving }: {
           <label className="field"><span>Weight <em>optional</em></span><div className="input-with-suffix"><input type="number" inputMode="decimal" min="30" max="300" step="0.1" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="Leave blank" /><strong>kg</strong></div></label>
         </div>
         <label className="field"><span>Session note <em>optional</em></span><textarea rows={3} maxLength={160} value={note} onChange={(e) => setNote(e.target.value)} placeholder="How did it go?" /></label>
-        <div className="modal-actions"><button type="button" className="secondary-button" onClick={onClose}>Cancel</button><button className="primary-button" disabled={saving}>{saving ? "Saving..." : "Save session"} {!saving && <Check size={18} />}</button></div>
+        <div className="modal-actions"><button type="button" className="secondary-button" onClick={onClose}>Cancel</button><button className="primary-button" disabled={saving}>{saving ? "Saving..." : existing ? "Save changes" : "Save session"} {!saving && <Check size={18} />}</button></div>
       </form>
     </section>
   </div>;
@@ -140,6 +141,7 @@ export default function ChallengeApp() {
   const [section, setSection] = useState<AppSection>("overview");
   const [menuOpen, setMenuOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingSession, setEditingSession] = useState<ActivitySession | null>(null);
   const [loginLoading, setLoginLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -152,7 +154,7 @@ export default function ChallengeApp() {
     const [peopleResult, sessionsResult, weightsResult, resultsResult] = await Promise.all([
       supabase.from("participants").select("id, slug, display_name, color"),
       supabase.from("activity_sessions").select("id, participant_id, session_date, activity_type, minutes, note, created_at").order("created_at", { ascending: false }),
-      supabase.from("private_weights").select("id, participant_id, recorded_date, weight_kg").order("recorded_date"),
+      supabase.from("private_weights").select("id, session_id, participant_id, recorded_date, weight_kg").order("recorded_date"),
       supabase.from("released_weekly_results").select("participant_id, week_number, week_end, weight_kg, weekly_change_kg, total_lost_kg"),
     ]);
     const loadError = peopleResult.error ?? sessionsResult.error ?? weightsResult.error ?? resultsResult.error;
@@ -161,7 +163,7 @@ export default function ChallengeApp() {
     const slugById = Object.fromEntries(people.map((person) => [person.id, person.slug]));
     setRemoteParticipants(Object.fromEntries(people.map((person) => [person.slug, person])));
     setSessions((sessionsResult.data ?? []).map((row) => ({ id: row.id, participantSlug: slugById[row.participant_id], sessionDate: row.session_date, activityType: row.activity_type, minutes: row.minutes, note: row.note ?? "", createdAt: row.created_at })));
-    setMyWeights((weightsResult.data ?? []).filter((row) => slugById[row.participant_id] === userSlug).map((row) => ({ id: row.id, participantSlug: userSlug, recordedDate: row.recorded_date, weightKg: Number(row.weight_kg) })));
+    setMyWeights((weightsResult.data ?? []).filter((row) => slugById[row.participant_id] === userSlug).map((row) => ({ id: row.id, sessionId: row.session_id, participantSlug: userSlug, recordedDate: row.recorded_date, weightKg: Number(row.weight_kg) })));
     setReleasedResults((resultsResult.data ?? []).map((row) => ({ participantSlug: slugById[row.participant_id], weekNumber: row.week_number, weekEnd: row.week_end, weightKg: Number(row.weight_kg), weeklyChangeKg: Number(row.weekly_change_kg), totalLostKg: Number(row.total_lost_kg) })));
   };
 
@@ -192,20 +194,51 @@ export default function ChallengeApp() {
       if (supabase) {
         const profile = remoteParticipants[currentUser.slug];
         if (!profile) throw new Error("Profile missing");
-        const { error: sessionError } = await supabase.from("activity_sessions").insert({ participant_id: profile.id, session_date: session.sessionDate, activity_type: session.activityType, minutes: session.minutes, note: session.note });
+        const sessionPayload = { participant_id: profile.id, session_date: session.sessionDate, activity_type: session.activityType, minutes: session.minutes, note: session.note };
+        const sessionQuery = editingSession
+          ? supabase.from("activity_sessions").update(sessionPayload).eq("id", editingSession.id).select("id").single()
+          : supabase.from("activity_sessions").insert(sessionPayload).select("id").single();
+        const { data: savedSession, error: sessionError } = await sessionQuery;
         if (sessionError) throw sessionError;
+        const linkedWeight = myWeights.find((row) => row.sessionId === session.id);
         if (weight) {
-          const { error: weightError } = await supabase.from("private_weights").insert({ participant_id: profile.id, recorded_date: weight.recordedDate, weight_kg: weight.weightKg });
+          const weightPayload = { session_id: savedSession.id, participant_id: profile.id, recorded_date: weight.recordedDate, weight_kg: weight.weightKg };
+          const weightQuery = linkedWeight
+            ? supabase.from("private_weights").update(weightPayload).eq("id", linkedWeight.id)
+            : supabase.from("private_weights").insert(weightPayload);
+          const { error: weightError } = await weightQuery;
+          if (weightError) throw weightError;
+        } else if (linkedWeight) {
+          const { error: weightError } = await supabase.from("private_weights").delete().eq("id", linkedWeight.id);
           if (weightError) throw weightError;
         }
         await loadRemoteData(currentUser.slug);
       } else {
-        setSessions((current) => [session, ...current]);
-        if (weight) setMyWeights((current) => [...current, weight].sort((a, b) => a.recordedDate.localeCompare(b.recordedDate)));
+        setSessions((current) => editingSession ? current.map((row) => row.id === session.id ? session : row) : [session, ...current]);
+        setMyWeights((current) => {
+          const withoutLinked = current.filter((row) => row.sessionId !== session.id);
+          return weight ? [...withoutLinked, weight].sort((a, b) => a.recordedDate.localeCompare(b.recordedDate)) : withoutLinked;
+        });
       }
-      setModalOpen(false); setToast(weight ? "Session saved — weight recorded privately." : "Session saved — the family can see your effort!");
+      setModalOpen(false); setEditingSession(null); setToast(editingSession ? "Session updated." : weight ? "Session saved — weight recorded privately." : "Session saved — the family can see your effort!");
     } catch { setToast("That session could not be saved. Please try again."); }
     finally { setSaving(false); }
+  };
+
+  const editSession = (session: ActivitySession) => { setEditingSession(session); setModalOpen(true); };
+  const deleteSession = async (session: ActivitySession) => {
+    if (!currentUser || !window.confirm("Delete this session? This cannot be undone.")) return;
+    try {
+      if (supabase) {
+        const { error: deleteError } = await supabase.from("activity_sessions").delete().eq("id", session.id);
+        if (deleteError) throw deleteError;
+        await loadRemoteData(currentUser.slug);
+      } else {
+        setSessions((current) => current.filter((row) => row.id !== session.id));
+        setMyWeights((current) => current.filter((row) => row.sessionId !== session.id));
+      }
+      setToast("Session deleted.");
+    } catch { setToast("That session is locked or could not be deleted."); }
   };
 
   const statsByPerson = useMemo(() => Object.fromEntries(participants.map((person) => [person.slug, getReleasedStats(releasedResults, sessions, person.slug)])), [releasedResults, sessions]);
@@ -259,7 +292,7 @@ export default function ChallengeApp() {
     <main className="dashboard">
       {section === "overview" && <>
         <section className="challenge-hero">
-          <div className="challenge-hero__content"><span className="eyebrow eyebrow--light">Your week, your numbers</span><h1>Kia ora, {currentUser.name}.<br /><em>Keep moving.</em></h1><p>Log each 30+ minute session as you finish it. Add your weight when you want — it stays yours until reveal day.</p><button className="hero-button" onClick={() => setModalOpen(true)}><Plus size={19} /> Log a session <ChevronRight size={18} /></button></div>
+          <div className="challenge-hero__content"><span className="eyebrow eyebrow--light">Your week, your numbers</span><h1>Kia ora, {currentUser.name}.<br /><em>Keep moving.</em></h1><p>Log each 30+ minute session as you finish it, or catch up before Sunday&apos;s 10 PM lock. Add your weight when you want — it stays yours until reveal day.</p><button className="hero-button" onClick={() => { setEditingSession(null); setModalOpen(true); }}><Plus size={19} /> Log a session <ChevronRight size={18} /></button></div>
           <div className="challenge-hero__progress reveal-card"><div className="day-orbit"><EyeOff size={18} /><strong>W{currentWeek}</strong><small>PRIVATE</small></div><div className="hero-progress-copy"><strong>Next family reveal</strong><span>10 PM Sunday {formatChallengeDate(nextReveal)} · everyone&apos;s results unlock together</span><div className="progress-track"><i style={{ width: "72%" }} /></div></div></div>
           <Image src="/images/davo-hero-mascot.webp" alt="" className="dashboard-mascot" width={1254} height={1254} unoptimized />
         </section>
@@ -272,10 +305,10 @@ export default function ChallengeApp() {
         <section className="privacy-banner"><LockKeyhole size={22} /><div><strong>Your in-week weight is for your eyes only</strong><span>The activity feed shows that you trained, but never shows the weight you entered. Weekly changes are revealed at 10 PM Sunday.</span></div><span className="privacy-badge"><Eye size={15} /> You only</span></section>
         <section className="charts-grid">
           <article className="panel chart-panel"><div className="panel-header"><div><span className="eyebrow">Private view</span><h2>My weight this week</h2></div><span className="private-pill"><LockKeyhole size={14} /> Only you</span></div><div className="chart-wrap"><ResponsiveContainer width="100%" height="100%"><LineChart data={userWeightChart} margin={{ top: 12, right: 12, left: -12 }}><CartesianGrid strokeDasharray="4 7" stroke="#dfe5e7" vertical={false} /><XAxis dataKey="date" axisLine={false} tickLine={false} /><YAxis domain={["dataMin - 1", "dataMax + 1"]} axisLine={false} tickLine={false} /><Tooltip contentStyle={{ borderRadius: 14 }} /><Line type="monotone" dataKey="weight" name="Weight (kg)" stroke={currentUser.color} strokeWidth={3} dot={{ r: 4 }} /></LineChart></ResponsiveContainer></div></article>
-          <ActivityFeed sessions={activityFeed.slice(0, 6)} currentUser={currentUser} />
+          <ActivityFeed sessions={activityFeed.slice(0, 6)} currentUser={currentUser} onEdit={editSession} onDelete={deleteSession} />
         </section>
       </>}
-      {section === "activity" && <div className="activity-page"><section className="standings-heading"><div><span className="eyebrow">Live family effort</span><h1>Activity feed</h1><p>Sessions appear here as soon as they&apos;re logged. Weight entries remain completely private.</p></div><button className="primary-button" onClick={() => setModalOpen(true)}><Plus size={18} /> Log a session</button></section><ActivityFeed sessions={activityFeed} currentUser={currentUser} full /></div>}
+      {section === "activity" && <div className="activity-page"><section className="standings-heading"><div><span className="eyebrow">Live family effort</span><h1>Activity feed</h1><p>Log sessions as they happen or catch up later in the same open week. Weight entries remain completely private.</p></div><button className="primary-button" onClick={() => { setEditingSession(null); setModalOpen(true); }}><Plus size={18} /> Log a session</button></section><ActivityFeed sessions={activityFeed} currentUser={currentUser} full onEdit={editSession} onDelete={deleteSession} /></div>}
       {section === "standings" && <div className="standings-page">
         <section className="standings-heading"><div><span className="eyebrow">Released results only</span><h1>Challenge standings</h1><p>Weight rankings update together at 10 PM each Sunday. Activity totals stay live all week.</p></div><div className="standings-heading__badge"><EyeOff size={24} /><span>Next reveal<strong>10 PM · {formatChallengeDate(nextReveal)}</strong></span></div></section>
         <section className="standings-cards">{ranked.map((person, index) => { const stats = statsByPerson[person.slug]; return <article key={person.slug} className={person.slug === currentUser.slug ? "is-you" : ""}><span className={`podium-number podium-number--${index + 1}`}>{index + 1}</span><Avatar participant={person} size="large" /><div className="standing-person"><h2>{person.name}{person.slug === currentUser.slug && <small>You</small>}</h2><span>Weight through {challengeWeeks[stats.latestWeek].label}</span></div><div className="standing-metrics"><span><strong>{stats.kgLost.toFixed(1)} kg</strong>released loss</span><span><strong>{stats.sessionsCompleted}</strong>live sessions</span><span><strong>{stats.exerciseMinutes}</strong>minutes</span><span className={stats.kgLost >= 4 ? "is-eligible" : ""}><strong>{stats.kgLost >= 4 ? `$${stats.reward}` : "Not yet"}</strong>reward</span></div></article>; })}</section>
@@ -285,12 +318,12 @@ export default function ChallengeApp() {
         </section>
       </div>}
     </main>
-    <nav className="mobile-bottom-nav"><button className={section === "overview" ? "is-active" : ""} onClick={() => navigate("overview")}><Scale size={19} />Home</button><button className="mobile-add" onClick={() => setModalOpen(true)}><Plus size={24} /></button><button className={section === "activity" ? "is-active" : ""} onClick={() => navigate("activity")}><Activity size={19} />Feed</button><button className={section === "standings" ? "is-active" : ""} onClick={() => navigate("standings")}><Trophy size={19} />Standings</button></nav>
-    {modalOpen && <SessionModal participant={currentUser} onClose={() => setModalOpen(false)} onSave={saveSession} saving={saving} />}
+    <nav className="mobile-bottom-nav"><button className={section === "overview" ? "is-active" : ""} onClick={() => navigate("overview")}><Scale size={19} />Home</button><button className="mobile-add" onClick={() => { setEditingSession(null); setModalOpen(true); }}><Plus size={24} /></button><button className={section === "activity" ? "is-active" : ""} onClick={() => navigate("activity")}><Activity size={19} />Feed</button><button className={section === "standings" ? "is-active" : ""} onClick={() => navigate("standings")}><Trophy size={19} />Standings</button></nav>
+    {modalOpen && <SessionModal participant={currentUser} existing={editingSession ?? undefined} existingWeight={editingSession ? myWeights.find((row) => row.sessionId === editingSession.id) : undefined} onClose={() => { setModalOpen(false); setEditingSession(null); }} onSave={saveSession} saving={saving} />}
     {toast && <div className="toast"><Check size={18} />{toast}</div>}
   </div>;
 }
 
-function ActivityFeed({ sessions, currentUser, full = false }: { sessions: ActivitySession[]; currentUser: Participant; full?: boolean }) {
-  return <article className={`panel activity-feed ${full ? "activity-feed--full" : ""}`}><div className="panel-header"><div><span className="eyebrow">Visible to everyone</span><h2>Family activity</h2></div><span className="live-pill"><i /> Live</span></div><div className="feed-list">{sessions.length === 0 && <p className="empty-state">No sessions logged yet. Be the first!</p>}{sessions.map((session) => { const person = participants.find((item) => item.slug === session.participantSlug)!; return <div className="feed-item" key={session.id}><Avatar participant={person} /><div><strong>{person.name}{person.slug === currentUser.slug && <small>You</small>}</strong><span><Footprints size={14} /> {session.activityType} · {session.minutes} min</span>{session.note && <p>{session.note}</p>}</div><time><CalendarDays size={13} />{formatChallengeDate(session.sessionDate, { weekday: "short", day: "numeric", month: "short" })}</time></div>; })}</div></article>;
+function ActivityFeed({ sessions, currentUser, full = false, onEdit, onDelete }: { sessions: ActivitySession[]; currentUser: Participant; full?: boolean; onEdit: (session: ActivitySession) => void; onDelete: (session: ActivitySession) => void }) {
+  return <article className={`panel activity-feed ${full ? "activity-feed--full" : ""}`}><div className="panel-header"><div><span className="eyebrow">Visible to everyone</span><h2>Family activity</h2></div><span className="live-pill"><i /> Live</span></div><div className="feed-list">{sessions.length === 0 && <p className="empty-state">No sessions logged yet. Be the first!</p>}{sessions.map((session) => { const person = participants.find((item) => item.slug === session.participantSlug)!; const own = person.slug === currentUser.slug; const open = isEntryOpen(session.sessionDate); return <div className="feed-item" key={session.id}><Avatar participant={person} /><div><strong>{person.name}{own && <small>You</small>}</strong><span><Footprints size={14} /> {session.activityType} · {session.minutes} min</span>{session.note && <p>{session.note}</p>}</div><div className="feed-meta"><time><CalendarDays size={13} />{formatChallengeDate(session.sessionDate, { weekday: "short", day: "numeric", month: "short" })}</time>{own && (open ? <span className="feed-controls"><button onClick={() => onEdit(session)} aria-label="Edit session"><Pencil size={14} /> Edit</button><button onClick={() => onDelete(session)} aria-label="Delete session"><Trash2 size={14} /> Delete</button></span> : <span className="locked-pill"><LockKeyhole size={12} /> Locked</span>)}</div></div>; })}</div></article>;
 }
