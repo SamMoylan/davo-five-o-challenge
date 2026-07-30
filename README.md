@@ -6,8 +6,11 @@ A mobile-friendly family fitness tracker for the 50-day challenge running from
 ## What is included
 
 - Five participant profiles: Sam, Trish, Dave, Emma, and Jacob
-- Starting weight plus seven Saturday check-ins
-- Weekly weight, 30+ minute exercise sessions, active minutes, energy, and notes
+- Daily 30+ minute session logging with activity type, minutes, and notes
+- Optional private weight entry alongside any session
+- A live family activity feed that never exposes an entered weight
+- Automatic Saturday weight reveals, with in-progress weekly weights protected by database rules
+- A private personal weight chart for each participant
 - Cumulative weight-loss and exercise comparison charts
 - Weight-loss and exercise leaderboards
 - $50-per-kilogram reward tracking with the 4 kg eligibility minimum
@@ -53,8 +56,10 @@ preview mode. Preview changes last for the current browser session only.
 6. Restart the development server.
 
 Each person signs in by selecting their profile and entering the password you
-gave their Supabase user. All signed-in family members can view the leaderboard;
-row-level security allows a person to submit or edit only their own check-ins.
+gave their Supabase user. All signed-in family members can see session activity
+as it happens. Row-level security ensures that weight entries can only be read
+by their owner; the `released_weekly_results` view exposes a Saturday snapshot
+only after that week has closed in the Pacific/Auckland timezone.
 
 ## Netlify
 

@@ -35,7 +35,8 @@ body {
 
 button,
 input,
-textarea {
+textarea,
+select {
   font: inherit;
 }
 
@@ -48,6 +49,197 @@ input:focus-visible,
 textarea:focus-visible {
   outline: 3px solid rgba(242, 201, 76, 0.65);
   outline-offset: 2px;
+}
+
+select:focus-visible {
+  outline: 3px solid rgba(242, 201, 76, 0.65);
+  outline-offset: 2px;
+}
+
+.field select {
+  min-height: 50px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  outline: 0;
+  background: white;
+  color: var(--ink);
+}
+
+.privacy-callout,
+.privacy-banner {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  border: 1px solid #c9dfe4;
+  border-radius: 17px;
+  background: #edf7f8;
+  color: var(--navy-800);
+}
+
+.privacy-callout {
+  margin: 18px 0 2px;
+  padding: 13px 15px;
+}
+
+.privacy-callout > div,
+.privacy-banner > div {
+  display: grid;
+  flex: 1;
+  gap: 3px;
+}
+
+.privacy-callout strong,
+.privacy-banner strong {
+  font-size: 0.83rem;
+}
+
+.privacy-callout span,
+.privacy-banner span {
+  color: #58747b;
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.privacy-banner {
+  margin: 16px 0;
+  padding: 16px 18px;
+  background: linear-gradient(100deg, #eef8f9, #fffdf2);
+}
+
+.privacy-badge,
+.private-pill,
+.live-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: white;
+  color: var(--navy-700) !important;
+  font-size: 0.67rem !important;
+  font-weight: 800;
+}
+
+.private-pill {
+  border: 1px solid var(--line);
+}
+
+.live-pill {
+  color: #347650 !important;
+  background: #eaf7ee;
+}
+
+.live-pill i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 0 4px rgba(84, 167, 119, 0.14);
+}
+
+.reveal-card .day-orbit {
+  gap: 1px;
+}
+
+.reveal-card .day-orbit svg {
+  justify-self: center;
+  color: var(--yellow);
+}
+
+.activity-feed {
+  padding: 24px;
+}
+
+.activity-feed--full {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.feed-list {
+  display: grid;
+  margin-top: 6px;
+}
+
+.feed-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+  padding: 15px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.feed-item:last-child {
+  border-bottom: 0;
+}
+
+.feed-item > div {
+  display: grid;
+  gap: 5px;
+}
+
+.feed-item strong {
+  font-size: 0.86rem;
+}
+
+.feed-item strong small,
+.standing-person h2 small {
+  margin-left: 7px;
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: #fff4c1;
+  color: #7d650b;
+  font-size: 0.58rem;
+}
+
+.feed-item span,
+.feed-item time {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.feed-item p {
+  margin: 1px 0 0;
+  color: #465e64;
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+.feed-item time {
+  white-space: nowrap;
+}
+
+.activity-page .standings-heading {
+  margin-bottom: 18px;
+}
+
+.empty-state {
+  padding: 30px;
+  color: var(--muted);
+  text-align: center;
+}
+
+@media (max-width: 700px) {
+  .privacy-banner {
+    align-items: flex-start;
+  }
+
+  .privacy-badge {
+    display: none;
+  }
+
+  .feed-item {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .feed-item time {
+    grid-column: 2;
+  }
 }
 
 .eyebrow {

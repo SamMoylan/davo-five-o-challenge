@@ -1,5 +1,5 @@
 -- Davo Five-O Challenge
--- Run this in the Supabase SQL editor before creating the five Auth users.
+-- Run in Supabase SQL editor. Weight rows are private at database-policy level.
 
 create extension if not exists pgcrypto;
 
@@ -11,80 +11,80 @@ create table if not exists public.participants (
   created_at timestamptz not null default now()
 );
 
-create table if not exists public.check_ins (
+create table if not exists public.activity_sessions (
   id uuid primary key default gen_random_uuid(),
   participant_id uuid not null references public.participants(id) on delete cascade,
-  week_number integer not null check (week_number between 0 and 7),
-  weigh_in_date date not null,
-  weight_kg numeric(5, 1) not null check (weight_kg between 30 and 300),
-  exercise_sessions integer not null default 0 check (exercise_sessions between 0 and 30),
-  exercise_minutes integer not null default 0 check (exercise_minutes between 0 and 3000),
-  energy integer not null default 3 check (energy between 1 and 5),
-  note text not null default '' check (char_length(note) <= 240),
-  submitted_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  unique (participant_id, week_number)
+  session_date date not null check (session_date between '2026-08-01' and '2026-09-19'),
+  activity_type text not null check (activity_type in ('Gym','Walk','Run','Cycle','Swim','Sport','Other')),
+  minutes integer not null check (minutes between 30 and 600),
+  note text not null default '' check (char_length(note) <= 160),
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.private_weights (
+  id uuid primary key default gen_random_uuid(),
+  participant_id uuid not null references public.participants(id) on delete cascade,
+  recorded_date date not null check (recorded_date between '2026-08-01' and '2026-09-19'),
+  weight_kg numeric(5,1) not null check (weight_kg between 30 and 300),
+  created_at timestamptz not null default now()
 );
 
 create or replace function public.handle_new_participant()
-returns trigger
-language plpgsql
-security definer set search_path = ''
+returns trigger language plpgsql security definer set search_path = ''
 as $$
 begin
   if new.raw_user_meta_data ->> 'slug' is not null then
     insert into public.participants (id, slug, display_name, color)
-    values (
-      new.id,
-      new.raw_user_meta_data ->> 'slug',
-      coalesce(
-        new.raw_user_meta_data ->> 'display_name',
-        initcap(new.raw_user_meta_data ->> 'slug')
-      ),
-      coalesce(new.raw_user_meta_data ->> 'color', '#27657a')
-    );
+    values (new.id, new.raw_user_meta_data ->> 'slug',
+      coalesce(new.raw_user_meta_data ->> 'display_name', initcap(new.raw_user_meta_data ->> 'slug')),
+      coalesce(new.raw_user_meta_data ->> 'color', '#27657a'))
+    on conflict (id) do nothing;
   end if;
   return new;
 end;
 $$;
 
 drop trigger if exists on_auth_user_created on auth.users;
-create trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute procedure public.handle_new_participant();
+create trigger on_auth_user_created after insert on auth.users
+for each row execute procedure public.handle_new_participant();
 
 alter table public.participants enable row level security;
-alter table public.check_ins enable row level security;
+alter table public.activity_sessions enable row level security;
+alter table public.private_weights enable row level security;
 
-create policy "Signed-in family can view participants"
-  on public.participants for select
-  to authenticated
-  using (true);
+create policy "Family can view participants" on public.participants for select to authenticated using (true);
+create policy "Family can view sessions" on public.activity_sessions for select to authenticated using (true);
+create policy "Users add own sessions" on public.activity_sessions for insert to authenticated with check (auth.uid() = participant_id);
+create policy "Users edit own sessions" on public.activity_sessions for update to authenticated using (auth.uid() = participant_id) with check (auth.uid() = participant_id);
+create policy "Users delete own sessions" on public.activity_sessions for delete to authenticated using (auth.uid() = participant_id);
+create policy "Weights are owner-only" on public.private_weights for select to authenticated using (auth.uid() = participant_id);
+create policy "Users add own weights" on public.private_weights for insert to authenticated with check (auth.uid() = participant_id);
+create policy "Users edit own weights" on public.private_weights for update to authenticated using (auth.uid() = participant_id) with check (auth.uid() = participant_id);
+create policy "Users delete own weights" on public.private_weights for delete to authenticated using (auth.uid() = participant_id);
 
-create policy "Participants can update their own profile"
-  on public.participants for update
-  to authenticated
-  using (auth.uid() = id)
-  with check (auth.uid() = id);
+-- This view intentionally exposes only completed Saturday results. It never
+-- returns the current in-progress week or any individual in-week measurement.
+create or replace view public.released_weekly_results
+with (security_invoker = false)
+as
+with weeks as (
+  select n as week_number, ('2026-08-01'::date + n * 7) as week_end
+  from generate_series(0, 7) n
+),
+snapshots as (
+  select p.id as participant_id, w.week_number, w.week_end,
+    (select pw.weight_kg from public.private_weights pw
+      where pw.participant_id = p.id and pw.recorded_date <= w.week_end
+      order by pw.recorded_date desc, pw.created_at desc limit 1) as weight_kg
+  from public.participants p cross join weeks w
+  where w.week_end <= (now() at time zone 'Pacific/Auckland')::date
+)
+select participant_id, week_number, week_end, weight_kg,
+  round((lag(weight_kg) over (partition by participant_id order by week_number) - weight_kg)::numeric, 1) as weekly_change_kg,
+  round((first_value(weight_kg) over (partition by participant_id order by week_number) - weight_kg)::numeric, 1) as total_lost_kg
+from snapshots
+where weight_kg is not null;
 
-create policy "Signed-in family can view all check-ins"
-  on public.check_ins for select
-  to authenticated
-  using (true);
-
-create policy "Participants can add their own check-ins"
-  on public.check_ins for insert
-  to authenticated
-  with check (auth.uid() = participant_id);
-
-create policy "Participants can update their own check-ins"
-  on public.check_ins for update
-  to authenticated
-  using (auth.uid() = participant_id)
-  with check (auth.uid() = participant_id);
-
-create index if not exists check_ins_participant_idx
-  on public.check_ins (participant_id);
-
-create index if not exists check_ins_week_idx
-  on public.check_ins (week_number);
+grant select on public.released_weekly_results to authenticated;
+create index if not exists activity_sessions_date_idx on public.activity_sessions (session_date desc);
+create index if not exists private_weights_owner_date_idx on public.private_weights (participant_id, recorded_date desc);
