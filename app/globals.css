@@ -221,6 +221,30 @@ select:focus-visible {
   white-space: nowrap;
 }
 
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.hero-button--secondary {
+  border: 1px solid rgba(255, 255, 255, 0.48);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  box-shadow: none;
+}
+
+.hero-button--secondary:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.form-helper {
+  margin: -4px 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
 .feed-meta {
   justify-items: end;
 }

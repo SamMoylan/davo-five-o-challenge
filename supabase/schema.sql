@@ -128,3 +128,6 @@ grant select on public.released_weekly_results to authenticated;
 create index if not exists activity_sessions_date_idx on public.activity_sessions (session_date desc);
 create index if not exists private_weights_owner_date_idx on public.private_weights (participant_id, recorded_date desc);
 create index if not exists private_weights_session_idx on public.private_weights (session_id);
+create unique index if not exists one_starting_weight_per_person_idx
+  on public.private_weights (participant_id)
+  where recorded_date = date '2026-08-02' and session_id is null;

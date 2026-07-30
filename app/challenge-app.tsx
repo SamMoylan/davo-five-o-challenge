@@ -128,6 +128,24 @@ function SessionModal({ participant, existing, existingWeight, onClose, onSave, 
   </div>;
 }
 
+function StartingWeightModal({ existing, onClose, onSave, saving }: {
+  existing?: PrivateWeight; onClose: () => void;
+  onSave: (weightKg: number) => void; saving: boolean;
+}) {
+  const [weight, setWeight] = useState(existing ? String(existing.weightKg) : "");
+  return <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
+    <section className="check-in-modal starting-weight-modal" role="dialog" aria-modal="true" aria-labelledby="starting-weight-heading" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="modal-header"><div><span className="eyebrow">Optional private baseline</span><h2 id="starting-weight-heading">{existing ? "Update starting weight" : "Add starting weight"}</h2></div><button className="icon-button" onClick={onClose} aria-label="Close"><X size={21} /></button></div>
+      <div className="privacy-callout"><LockKeyhole size={19} /><div><strong>Only you can see the number</strong><span>Your 2 August weight establishes the baseline used to calculate weight loss. The family sees only released progress.</span></div></div>
+      <form className="check-in-form" onSubmit={(event) => { event.preventDefault(); onSave(Number(weight)); }}>
+        <label className="field"><span>Starting weight — 2 August</span><div className="input-with-suffix"><input type="number" inputMode="decimal" min="30" max="300" step="0.1" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="Enter weight" required autoFocus /><strong>kg</strong></div></label>
+        <p className="form-helper">This is optional. You can still log exercise sessions without adding a starting weight.</p>
+        <div className="modal-actions"><button type="button" className="secondary-button" onClick={onClose}>Cancel</button><button className="primary-button" disabled={saving}>{saving ? "Saving..." : existing ? "Save changes" : "Save starting weight"} {!saving && <Check size={18} />}</button></div>
+      </form>
+    </section>
+  </div>;
+}
+
 function StatCard({ icon, label, value, detail, tone = "navy" }: { icon: React.ReactNode; label: string; value: string; detail: string; tone?: "navy" | "yellow" | "coral" | "green" }) {
   return <article className={`stat-card stat-card--${tone}`}><div className="stat-card__icon">{icon}</div><div><p>{label}</p><strong>{value}</strong><span>{detail}</span></div></article>;
 }
@@ -141,6 +159,7 @@ export default function ChallengeApp() {
   const [section, setSection] = useState<AppSection>("overview");
   const [menuOpen, setMenuOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [weightModalOpen, setWeightModalOpen] = useState(false);
   const [editingSession, setEditingSession] = useState<ActivitySession | null>(null);
   const [loginLoading, setLoginLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -225,6 +244,31 @@ export default function ChallengeApp() {
     finally { setSaving(false); }
   };
 
+  const startingWeight = myWeights.find((row) => row.recordedDate === "2026-08-02" && !row.sessionId);
+  const saveStartingWeight = async (weightKg: number) => {
+    if (!currentUser) return;
+    setSaving(true);
+    try {
+      if (supabase) {
+        const profile = remoteParticipants[currentUser.slug];
+        if (!profile) throw new Error("Profile missing");
+        const payload = { participant_id: profile.id, recorded_date: "2026-08-02", weight_kg: weightKg };
+        const query = startingWeight
+          ? supabase.from("private_weights").update(payload).eq("id", startingWeight.id)
+          : supabase.from("private_weights").insert(payload);
+        const { error: weightError } = await query;
+        if (weightError) throw weightError;
+        await loadRemoteData(currentUser.slug);
+      } else {
+        const row: PrivateWeight = { id: startingWeight?.id ?? `starting-${currentUser.slug}`, participantSlug: currentUser.slug, recordedDate: "2026-08-02", weightKg };
+        setMyWeights((current) => [...current.filter((item) => item.id !== row.id), row].sort((a, b) => a.recordedDate.localeCompare(b.recordedDate)));
+      }
+      setWeightModalOpen(false);
+      setToast(startingWeight ? "Starting weight updated privately." : "Starting weight saved privately.");
+    } catch { setToast("Starting weight can be saved from 2 August until the 10 PM lock."); }
+    finally { setSaving(false); }
+  };
+
   const editSession = (session: ActivitySession) => { setEditingSession(session); setModalOpen(true); };
   const deleteSession = async (session: ActivitySession) => {
     if (!currentUser || !window.confirm("Delete this session? This cannot be undone.")) return;
@@ -292,7 +336,7 @@ export default function ChallengeApp() {
     <main className="dashboard">
       {section === "overview" && <>
         <section className="challenge-hero">
-          <div className="challenge-hero__content"><span className="eyebrow eyebrow--light">Your week, your numbers</span><h1>Kia ora, {currentUser.name}.<br /><em>Keep moving.</em></h1><p>Log each 30+ minute session as you finish it, or catch up before Sunday&apos;s 10 PM lock. Add your weight when you want — it stays yours until reveal day.</p><button className="hero-button" onClick={() => { setEditingSession(null); setModalOpen(true); }}><Plus size={19} /> Log a session <ChevronRight size={18} /></button></div>
+          <div className="challenge-hero__content"><span className="eyebrow eyebrow--light">Your week, your numbers</span><h1>Kia ora, {currentUser.name}.<br /><em>Keep moving.</em></h1><p>Log each 30+ minute session as you finish it, or catch up before Sunday&apos;s 10 PM lock. Your optional starting weight is entered separately and stays private.</p><div className="hero-actions"><button className="hero-button" onClick={() => { setEditingSession(null); setModalOpen(true); }}><Plus size={19} /> Log a session <ChevronRight size={18} /></button><button className="hero-button hero-button--secondary" onClick={() => setWeightModalOpen(true)}><Scale size={18} /> {startingWeight ? "Edit starting weight" : "Add starting weight"}</button></div></div>
           <div className="challenge-hero__progress reveal-card"><div className="day-orbit"><EyeOff size={18} /><strong>W{currentWeek}</strong><small>PRIVATE</small></div><div className="hero-progress-copy"><strong>Next family reveal</strong><span>10 PM Sunday {formatChallengeDate(nextReveal)} · everyone&apos;s results unlock together</span><div className="progress-track"><i style={{ width: "72%" }} /></div></div></div>
           <Image src="/images/davo-hero-mascot.webp" alt="" className="dashboard-mascot" width={1254} height={1254} unoptimized />
         </section>
@@ -320,6 +364,7 @@ export default function ChallengeApp() {
     </main>
     <nav className="mobile-bottom-nav"><button className={section === "overview" ? "is-active" : ""} onClick={() => navigate("overview")}><Scale size={19} />Home</button><button className="mobile-add" onClick={() => { setEditingSession(null); setModalOpen(true); }}><Plus size={24} /></button><button className={section === "activity" ? "is-active" : ""} onClick={() => navigate("activity")}><Activity size={19} />Feed</button><button className={section === "standings" ? "is-active" : ""} onClick={() => navigate("standings")}><Trophy size={19} />Standings</button></nav>
     {modalOpen && <SessionModal participant={currentUser} existing={editingSession ?? undefined} existingWeight={editingSession ? myWeights.find((row) => row.sessionId === editingSession.id) : undefined} onClose={() => { setModalOpen(false); setEditingSession(null); }} onSave={saveSession} saving={saving} />}
+    {weightModalOpen && <StartingWeightModal existing={startingWeight} onClose={() => setWeightModalOpen(false)} onSave={saveStartingWeight} saving={saving} />}
     {toast && <div className="toast"><Check size={18} />{toast}</div>}
   </div>;
 }
