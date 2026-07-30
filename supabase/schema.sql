@@ -14,7 +14,7 @@ create table if not exists public.participants (
 create table if not exists public.activity_sessions (
   id uuid primary key default gen_random_uuid(),
   participant_id uuid not null references public.participants(id) on delete cascade,
-  session_date date not null check (session_date between '2026-08-01' and '2026-09-19'),
+  session_date date not null check (session_date between '2026-08-02' and '2026-09-20'),
   activity_type text not null check (activity_type in ('Gym','Walk','Run','Cycle','Swim','Sport','Other')),
   minutes integer not null check (minutes between 30 and 600),
   note text not null default '' check (char_length(note) <= 160),
@@ -24,7 +24,7 @@ create table if not exists public.activity_sessions (
 create table if not exists public.private_weights (
   id uuid primary key default gen_random_uuid(),
   participant_id uuid not null references public.participants(id) on delete cascade,
-  recorded_date date not null check (recorded_date between '2026-08-01' and '2026-09-19'),
+  recorded_date date not null check (recorded_date between '2026-08-02' and '2026-09-20'),
   weight_kg numeric(5,1) not null check (weight_kg between 30 and 300),
   created_at timestamptz not null default now()
 );
@@ -62,13 +62,13 @@ create policy "Users add own weights" on public.private_weights for insert to au
 create policy "Users edit own weights" on public.private_weights for update to authenticated using (auth.uid() = participant_id) with check (auth.uid() = participant_id);
 create policy "Users delete own weights" on public.private_weights for delete to authenticated using (auth.uid() = participant_id);
 
--- This view intentionally exposes only completed Saturday results. It never
+-- This view intentionally exposes only completed Sunday results. It never
 -- returns the current in-progress week or any individual in-week measurement.
 create or replace view public.released_weekly_results
 with (security_invoker = false)
 as
 with weeks as (
-  select n as week_number, ('2026-08-01'::date + n * 7) as week_end
+  select n as week_number, ('2026-08-02'::date + n * 7) as week_end
   from generate_series(0, 7) n
 ),
 snapshots as (

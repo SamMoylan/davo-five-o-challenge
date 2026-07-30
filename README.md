@@ -1,7 +1,7 @@
 # Davo Five-O Challenge
 
 A mobile-friendly family fitness tracker for the 50-day challenge running from
-1 August to 19 September 2026.
+2 August to 20 September 2026.
 
 ## What is included
 
@@ -9,7 +9,7 @@ A mobile-friendly family fitness tracker for the 50-day challenge running from
 - Daily 30+ minute session logging with activity type, minutes, and notes
 - Optional private weight entry alongside any session
 - A live family activity feed that never exposes an entered weight
-- Automatic Saturday weight reveals, with in-progress weekly weights protected by database rules
+- Automatic Sunday weight reveals, with in-progress weekly weights protected by database rules
 - A private personal weight chart for each participant
 - Cumulative weight-loss and exercise comparison charts
 - Weight-loss and exercise leaderboards
@@ -58,7 +58,7 @@ preview mode. Preview changes last for the current browser session only.
 Each person signs in by selecting their profile and entering the password you
 gave their Supabase user. All signed-in family members can see session activity
 as it happens. Row-level security ensures that weight entries can only be read
-by their owner; the `released_weekly_results` view exposes a Saturday snapshot
+by their owner; the `released_weekly_results` view exposes a Sunday snapshot
 only after that week has closed in the Pacific/Auckland timezone.
 
 ## Netlify

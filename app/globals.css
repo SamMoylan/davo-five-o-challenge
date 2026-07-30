@@ -194,13 +194,20 @@ select:focus-visible {
   font-size: 0.58rem;
 }
 
-.feed-item span,
+.feed-item span:not(.avatar),
 .feed-item time {
   display: flex;
   align-items: center;
   gap: 5px;
   color: var(--muted);
   font-size: 0.72rem;
+}
+
+.feed-item .avatar {
+  display: grid;
+  place-items: center;
+  line-height: 1;
+  text-align: center;
 }
 
 .feed-item p {

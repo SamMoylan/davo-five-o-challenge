@@ -42,14 +42,14 @@ export const participants: Participant[] = [
 ];
 
 export const challengeWeeks = [
-  { weekNumber: 0, label: "Start", shortLabel: "Start", date: "2026-08-01" },
-  { weekNumber: 1, label: "Week 1", shortLabel: "W1", date: "2026-08-08" },
-  { weekNumber: 2, label: "Week 2", shortLabel: "W2", date: "2026-08-15" },
-  { weekNumber: 3, label: "Week 3", shortLabel: "W3", date: "2026-08-22" },
-  { weekNumber: 4, label: "Week 4", shortLabel: "W4", date: "2026-08-29" },
-  { weekNumber: 5, label: "Week 5", shortLabel: "W5", date: "2026-09-05" },
-  { weekNumber: 6, label: "Week 6", shortLabel: "W6", date: "2026-09-12" },
-  { weekNumber: 7, label: "Final", shortLabel: "Final", date: "2026-09-19" },
+  { weekNumber: 0, label: "Start", shortLabel: "Start", date: "2026-08-02" },
+  { weekNumber: 1, label: "Week 1", shortLabel: "W1", date: "2026-08-09" },
+  { weekNumber: 2, label: "Week 2", shortLabel: "W2", date: "2026-08-16" },
+  { weekNumber: 3, label: "Week 3", shortLabel: "W3", date: "2026-08-23" },
+  { weekNumber: 4, label: "Week 4", shortLabel: "W4", date: "2026-08-30" },
+  { weekNumber: 5, label: "Week 5", shortLabel: "W5", date: "2026-09-06" },
+  { weekNumber: 6, label: "Week 6", shortLabel: "W6", date: "2026-09-13" },
+  { weekNumber: 7, label: "Final", shortLabel: "Final", date: "2026-09-20" },
 ];
 
 export const activityTypes = ["Gym", "Walk", "Run", "Cycle", "Swim", "Sport", "Other"];
