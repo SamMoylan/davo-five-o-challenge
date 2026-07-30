@@ -25,8 +25,10 @@ npm install
 npm run dev
 ```
 
-If the Supabase variables are not present, the app automatically opens in
-preview mode. Preview changes last for the current browser session only.
+The checked-in defaults connect this build to the Davo Supabase project.
+Environment variables can override those public browser credentials for
+another deployment. Preview changes are only used when no Supabase project is
+configured.
 
 ## Connect the shared database
 
