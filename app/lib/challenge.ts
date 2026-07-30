@@ -35,10 +35,10 @@ export type WeeklyResult = {
 
 export const participants: Participant[] = [
   { slug: "sam", name: "Sam", email: "sam@davo-five-o.local", initials: "SM", color: "#f2c94c", tint: "#fff7d6" },
-  { slug: "trish", name: "Trish", email: "trish@davo-five-o.local", initials: "TR", color: "#ef8354", tint: "#fff0e9" },
-  { slug: "dave", name: "Dave", email: "dave@davo-five-o.local", initials: "DV", color: "#3b82a0", tint: "#e6f4f8" },
-  { slug: "emma", name: "Emma", email: "emma@davo-five-o.local", initials: "EM", color: "#8a6fd1", tint: "#f1edfb" },
-  { slug: "jacob", name: "Jacob", email: "jacob@davo-five-o.local", initials: "JC", color: "#54a777", tint: "#e9f7ee" },
+  { slug: "trish", name: "Trish", email: "trish@davo-five-o.local", initials: "TM", color: "#ef8354", tint: "#fff0e9" },
+  { slug: "dave", name: "Dave", email: "dave@davo-five-o.local", initials: "DM", color: "#3b82a0", tint: "#e6f4f8" },
+  { slug: "emma", name: "Emma", email: "emma@davo-five-o.local", initials: "EP", color: "#8a6fd1", tint: "#f1edfb" },
+  { slug: "jacob", name: "Jacob", email: "jacob@davo-five-o.local", initials: "JM", color: "#54a777", tint: "#e9f7ee" },
 ];
 
 export const challengeWeeks = [
