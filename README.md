@@ -9,7 +9,7 @@ A mobile-friendly family fitness tracker for the 50-day challenge running from
 - Daily 30+ minute session logging with activity type, minutes, and notes
 - Optional private weight entry alongside any session
 - A live family activity feed that never exposes an entered weight
-- Automatic Sunday weight reveals, with in-progress weekly weights protected by database rules
+- Automatic 10 PM Sunday weight reveals, with in-progress weekly weights protected by database rules
 - A private personal weight chart for each participant
 - Cumulative weight-loss and exercise comparison charts
 - Weight-loss and exercise leaderboards
@@ -59,7 +59,7 @@ Each person signs in by selecting their profile and entering the password you
 gave their Supabase user. All signed-in family members can see session activity
 as it happens. Row-level security ensures that weight entries can only be read
 by their owner; the `released_weekly_results` view exposes a Sunday snapshot
-only after that week has closed in the Pacific/Auckland timezone.
+only after 10 PM in the Pacific/Auckland timezone.
 
 ## Netlify
 

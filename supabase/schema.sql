@@ -62,7 +62,8 @@ create policy "Users add own weights" on public.private_weights for insert to au
 create policy "Users edit own weights" on public.private_weights for update to authenticated using (auth.uid() = participant_id) with check (auth.uid() = participant_id);
 create policy "Users delete own weights" on public.private_weights for delete to authenticated using (auth.uid() = participant_id);
 
--- This view intentionally exposes only completed Sunday results. It never
+-- This view intentionally exposes only Sunday results whose 10 PM NZ reveal
+-- time has passed. It never
 -- returns the current in-progress week or any individual in-week measurement.
 create or replace view public.released_weekly_results
 with (security_invoker = false)
@@ -77,7 +78,8 @@ snapshots as (
       where pw.participant_id = p.id and pw.recorded_date <= w.week_end
       order by pw.recorded_date desc, pw.created_at desc limit 1) as weight_kg
   from public.participants p cross join weeks w
-  where w.week_end <= (now() at time zone 'Pacific/Auckland')::date
+  where (w.week_end::timestamp + interval '22 hours')
+    <= (now() at time zone 'Pacific/Auckland')
 )
 select participant_id, week_number, week_end, weight_kg,
   round((lag(weight_kg) over (partition by participant_id order by week_number) - weight_kg)::numeric, 1) as weekly_change_kg,
